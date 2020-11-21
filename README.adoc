@@ -1,0 +1,236 @@
+= K101 - ODO - OpenShift Do
+:author: Hafid Haddouti
+:toc: left
+:toclevels: 4
+
+ODO 101
+
+toc::[]
+
+== Overview
+
+This is a short overview of the new link:https://developers.redhat.com/products/odo/overview[odo 2.x] features to create a new application using link:https://docs.devfile.io/devfile/index.html[devfiles] and push/deploy them to a Kubernetes/OpenShift cluster.
+For details see the link:https://odo.dev/docs/installing-odo/[odo docu].
+
+== ODO workflow
+
+A short summary of the most important commands to
+
+* create a new application using a template/starter project
+* push into a cluster, which builds, package and deploy the current version into a cluster
+* watch any changes and deploy them
+* delete the app
+
+.Create nodejs app from a starter (using devfile)
+----
+$ odo catalog list components
+Odo Devfile Components:
+NAME                 DESCRIPTION                            REGISTRY
+java-maven           Upstream Maven and OpenJDK 11          DefaultDevfileRegistry
+java-openliberty     Open Liberty microservice in Java      DefaultDevfileRegistry
+java-quarkus         Upstream Quarkus with Java+GraalVM     DefaultDevfileRegistry
+java-springboot      Spring Boot® using Java                DefaultDevfileRegistry
+java-vertx           Upstream Vert.x using Java             DefaultDevfileRegistry
+nodejs               Stack with NodeJS 12                   DefaultDevfileRegistry
+python               Python Stack with Python 3.7           DefaultDevfileRegistry
+python-django        Python3.7 with Django                  DefaultDevfileRegistry
+
+Odo OpenShift Components:
+NAME       PROJECT       TAGS                      SUPPORTED
+java       openshift     11,8,latest               YES
+nodejs     openshift     10,12,latest              YES
+dotnet     openshift     2.1,3.1,latest            NO
+golang     openshift     1.11.5,latest             NO
+httpd      openshift     2.4,latest                NO
+nginx      openshift     1.10,1.14,1.16,latest     NO
+perl       openshift     5.26,latest               NO
+php        openshift     7.2,7.3,latest            NO
+python     openshift     2.7,3.6,latest            NO
+ruby       openshift     2.4,2.5,2.6,latest        NO
+
+
+$ odo create nodejs odo-nodejs --starter
+Validation
+ ✓  Checking devfile existence [60253ns]
+ ✓  Creating a devfile component from registry: DefaultDevfileRegistry [152074ns]
+ ✓  Validating devfile component [66847ns]
+
+Starter Project
+ ✓  Downloading starter project nodejs-starter from https://github.com/odo-devfiles/nodejs-ex.git [3s]
+
+Please use `odo push` command to create the component with source deployed
+
+----
+
+.Push the current version into the current cluster (session and namespace)
+----
+$ odo push
+
+Validation
+ ✓  Validating the devfile [1ms]
+
+Creating Kubernetes resources for component odo-nodejs
+ ✓  Waiting for component to start [54s]
+
+Applying URL changes
+ ✓  URL http-3000: http://http-3000-odo-nodejs-demo-odo.apps.cluster-c78c.sandbox1243.opentlc.com/ created
+
+Syncing to component odo-nodejs
+ ✓  Checking files for pushing [6ms]
+ ✓  Syncing files to the component [1s]
+
+Executing devfile commands for component odo-nodejs
+ ✓  Executing install command "npm install" [3s]
+ ✓  Executing run command "npm start" [1s]
+
+Pushing devfile component odo-nodejs
+ ✓  Changes successfully pushed to component
+
+
+
+$ oc get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+odo-nodejs-79d847f496-g2qh5   1/1     Running   0          89s
+
+$ oc get routes
+NAME                   HOST/PORT                                                                 PATH   SERVICES     PORT   TERMINATION   WILDCARD
+http-3000-odo-nodejs   http-3000-odo-nodejs-demo-odo.apps.cluster-c78c.sandbox1243.opentlc.com   /      odo-nodejs   3000                 None
+
+
+$ odo url list
+Found the following URLs for component odo-nodejs
+NAME          STATE      URL                                                                                PORT     SECURE     KIND
+http-3000     Pushed     http://http-3000-odo-nodejs-demo-odo.apps.cluster-c78c.sandbox1243.opentlc.com     3000     false      route
+
+----
+
+.Watch any changes on the local source code and push immediately 
+----
+
+$ odo watch
+Waiting for something to change in /Users/haddouti/repos/haf-tech/k101-odo/src
+
+$ vi src/server.js
+
+
+File /Users/haddouti/repos/haf-tech/k101-odo/src/server.js changed
+Pushing files...
+
+Validation
+ ✓  Validating the devfile [66844ns]
+
+Creating Kubernetes resources for component odo-nodejs
+ ✓  Waiting for component to start [51ms]
+
+Applying URL changes
+ ✓  URLs are synced with the cluster, no changes are required.
+
+Syncing to component odo-nodejs
+ ✓  Syncing files to the component [649ms]
+
+Executing devfile commands for component odo-nodejs
+ ✓  Executing install command "npm install" [2s]
+ ✓  Executing run command "npm start" [1s]
+Waiting for something to change in /Users/haddouti/repos/haf-tech/k101-odo/src
+
+----
+
+.Additional helpful commands
+----
+$ odo log
+...log from running pod
+
+$ odo exec -- env
+...exec command (here: env) in the pod
+
+----
+
+.List existing apps and delete one
+----
+$ odo app list
+The project 'demo-odo' has the following applications:
+NAME
+app
+
+$ odo app delete app
+This application has following components that will be deleted
+component named odo-nodejs
+This component has following urls that will be deleted with component
+URL named http-3000 with host http-3000-odo-nodejs-demo-odo.apps.cluster-c78c.sandbox1243.opentlc.com having protocol http at port 3000
+No services / could not get services
+? Are you sure you want to delete the application: app from project: demo-odo Yes
+Deleted application: app from project: demo-odo
+
+----
+
+.Install a second app - from a different local working dir
+----
+$ mkdir src2 && cd src2
+
+$ odo create nodejs odo-nodejs2 --app app2 --starter
+Validation
+ ✓  Checking devfile existence [38188ns]
+ ✓  Creating a devfile component from registry: DefaultDevfileRegistry [517926ns]
+ ✓  Validating devfile component [84642ns]
+
+Starter Project
+ ✓  Downloading starter project nodejs-starter from https://github.com/odo-devfiles/nodejs-ex.git [845ms]
+
+Please use `odo push` command to create the component with source deployed
+
+
+$ odo push
+
+Validation
+ ✓  Validating the devfile [91256ns]
+
+Creating Kubernetes resources for component odo-nodejs2
+ ✓  Waiting for component to start [5s]
+
+Applying URL changes
+ ✓  URL http-3000: http://http-3000-odo-nodejs2-demo-odo.apps.cluster-c78c.sandbox1243.opentlc.com/ created
+
+Syncing to component odo-nodejs2
+ ✓  Checking files for pushing [1ms]
+ ✓  Syncing files to the component [640ms]
+
+Executing devfile commands for component odo-nodejs2
+ ✓  Executing install command "npm install" [2s]
+ ✓  Executing run command "npm start" [1s]
+
+Pushing devfile component odo-nodejs2
+ ✓  Changes successfully pushed to component
+
+
+$ odo app list
+The project 'demo-odo' has the following applications:
+NAME
+app
+app2
+----
+
+== Summary
+
+ODO is a very helpful tool for support developer in creating and deploying cloud-native applications into a Kubernetes/OpenShift cluster.
+Even ODO is from Red Hat is the target to support Kubernetes and OpenShift, so no restriction on OpenShift only.
+
+Also to note, `odo` will not replace `oc` which covers much more use cases and operation activities, which are not in the this developer centric cli.
+
+With the integration of devfiles v2 we have here a powerful base which can be used in different tools/ecosystems (Che, CodeReady Workspaces).
+
+== References
+
+* odo GitHub - link:https://github.com/openshift/odo[]
+* odo docu - link:https://odo.dev/docs/installing-odo/[]
+* odo dev registry - link:https://github.com/odo-devfiles/registry[]
+
+== License
+
+This article is licensed under the Apache License, Version 2.
+Separate third-party code objects invoked within this code pattern are licensed by their respective providers pursuant
+to their own separate licenses. Contributions are subject to the
+link:https://developercertificate.org/[Developer Certificate of Origin, Version 1.1] and the
+link:https://www.apache.org/licenses/LICENSE-2.0.txt[Apache License, Version 2].
+
+See also link:https://www.apache.org/foundation/license-faq.html#WhatDoesItMEAN[Apache License FAQ]
+.
